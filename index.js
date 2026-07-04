@@ -112,7 +112,15 @@ class SlackAIAgent {
         try{
             log.info (`Processing member: ${memberInfo.name}`)
             const researchData = await his.doBasicResearch(memberInfo);
-            
+            const analysis = await this.analyzeWithAI(memberInfo, researchData);
+            log.info(`Saving analysis to database for ${memberInfo.name}`);
+            analysisId = await this.saveMemberAnalysis(memberInfo, analysis, researchData);
+            await this.postAnalysisToChannel(memberInfo, analysis, researchData);
+
+            if (analysisId) {
+                await markAsSentToSlack(analysisId);
+            }
+
 
         } catch (error) {
             log.error( `Error processing ${memberInfo.name}:`, error.message);
@@ -122,5 +130,24 @@ class SlackAIAgent {
             throw error;
         }
     } 
+
+    async doBasicResearch() {
+        const results = [];
+
+        try{
+            if (memberInfo.email && !this.personalEmail(memberInfo.email)) {
+                const domain = memberInfo.email.split('@')[1];
+                const companyInfo = await this.getCompanyInfo(domain);
+                if (companyInfo) results.push(companyInfo);
+
+                if (memberInfo.name) {
+                    const githubInfo = await this.getGithubInfo(memberInfo.name);
+                    if (githubInfo) results.push(githubInfo);
+                }
+            }
+        } catch (error) {
+            log.error(`Reseach error:`, error.message);
+        }
+    }
 
 }
